@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.0.36">
+  <POU Name="Machine" Id="{73eb7a95-03d0-4b25-be59-b5179e8259e2}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Machine
+VAR
+	(*Motion Section*)
+	AxisGroup : ARRAY[1..3] OF AxisCollection;
+	
+	(*IO Section*)
+	Digital_Sensor			AT %I*		: ARRAY [1..10] OF BOOL;
+	HeightThreshold 		AT %I*		: BOOL;
+	Cabinet_Open 			AT %I*	  	: BOOL;
+	
+	(*Machine*)
+	Process_Completed					: ARRAY[1..5] OF BOOL;
+	Process_Temperature 				: ARRAY[1..5] OF LREAL := [30, 29, 28, 31];
+	Process_Quality 					: INT := 90;
+	Process_Speed 						: REAL := 30;
+	Name								: STRING := 'myMachine';
+	Sequence							: INT := 0;
+	Sequence_Request					: INT := -1;
+	State								: INT := 10;
+	State_Request 						: INT := -1;
+	
+	(*Internal*)
+	i,j,k : INT;
+	bflag1,bflag2,bflag3,bflag4,bflag5 : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE State OF
+0:	
+	IF Sequence_Request > 0 THEN
+		Sequence := Sequence_Request;
+		Sequence_Request := -1;
+	END_IF
+	IF State_Request > 0 THEN
+		State := State_Request;
+		State_Request := -1;
+	END_IF
+10:
+	k := 0;
+	FOR i := 1 TO 3 BY 1 DO
+		FOR j := 1 TO MAX_AXES BY 1 DO
+			IF AxisGroup[i].On(j, TRUE, TRUE, 100) = Motion_FunctionResult.MOTION_OK THEN
+				k := k + 1;
+				IF k >= MAX_AXES*3 THEN
+					State := 0;
+				END_IF
+			END_IF
+		END_FOR
+	END_FOR
+100:
+	CASE Sequence OF
+		1 :
+			IF NOT bFlag1 THEN 
+				IF AxisGroup[1].MoveByDistance(1, 200, 200, 0,0,0) = Motion_FunctionResult.MOTION_OK THEN bFlag1 := TRUE; END_IF
+			END_IF
+			IF NOT bFlag2 THEN 
+				IF AxisGroup[2].MoveByDistance(2, 200, 200, 0,0,0) = Motion_FunctionResult.MOTION_OK THEN bFlag2 := TRUE; END_IF
+			END_IF
+			IF NOT bFlag3 THEN 
+				IF AxisGroup[1].MoveByDistance(3, 200, 200, 0,0,0) = Motion_FunctionResult.MOTION_OK THEN bFlag3 := TRUE; END_IF
+			END_IF
+			IF bFlag1 AND bFlag2 AND bFlag3 THEN 
+				bFlag1 := bFlag2 := bFlag3 := FALSE;
+				Sequence := 0;
+				State := 0;
+			END_IF
+	END_CASE
+END_CASE
+
+
+
+
+Process_Temperature[1] := Process_Temperature[1] + 0.01;
+IF Process_Temperature[1] > 32 THEN
+	Process_Temperature[1] := 29.02;
+END_IF
+Process_Temperature[2] := Process_Temperature[2] + 0.01;
+IF Process_Temperature[2] > 32 THEN
+	Process_Temperature[2] := 29.12;
+END_IF
+Process_Temperature[3] := Process_Temperature[3] + 0.01;
+IF Process_Temperature[3] > 32 THEN
+	Process_Temperature[3] := 30.02;
+END_IF
+Process_Temperature[4] := Process_Temperature[4] + 0.01;
+IF Process_Temperature[4] > 32 THEN
+	Process_Temperature[4] := 30.05;
+END_IF
+Process_Temperature[5] := Process_Temperature[5] + 0.01;
+IF Process_Temperature[5] > 32 THEN
+	Process_Temperature[5] := 31.01;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
